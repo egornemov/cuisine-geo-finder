@@ -24,7 +24,6 @@ class RestaurantAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), IAdap
         delegateAdapters.put(AdapterConstants.LOADING, LoadingDelegateAdapter())
         delegateAdapters.put(AdapterConstants.RESTAURANT, RestaurantDelegateAdapter())
         items = ArrayList()
-        items.add(loadingItem)
     }
 
     override fun getItemCount() = items.size
@@ -40,12 +39,17 @@ class RestaurantAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), IAdap
     override fun getItemViewType(position: Int) = items[position].getViewType()
 
     override fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList) {
-        val initPosition = items.size - 1
-        items.removeAt(initPosition)
-        notifyItemRemoved(initPosition)
+        val count = items.size
+        items.clear()
+        notifyItemRangeRemoved(0, count)
 
         items.addAll(restaurants.Restaurants)
-        notifyItemRangeChanged(initPosition, items.size - 1)
+        notifyItemRangeChanged(0, items.size - 1)
+    }
+
+    override fun loading() {
+        items.add(0, loadingItem)
+        notifyDataSetChanged()
     }
 
 }

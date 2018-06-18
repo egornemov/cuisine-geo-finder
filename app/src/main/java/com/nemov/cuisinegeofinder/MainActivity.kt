@@ -1,11 +1,18 @@
 package com.nemov.cuisinegeofinder
 
+import android.app.SearchManager
+import android.content.Context
+import android.content.Intent
 import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
+import android.support.v7.widget.SearchView
+import android.support.v7.widget.Toolbar
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.LinearLayout
 import android.widget.Toast
 import com.nemov.cuisinegeofinder.api.IAdapter
@@ -15,6 +22,7 @@ import com.nemov.cuisinegeofinder.api.RestaurantPresenter
 import com.nemov.cuisinegeofinder.commons.ConnectivityReceiver
 import com.nemov.cuisinegeofinder.commons.findFirstVisiblePosition
 import com.nemov.cuisinegeofinder.restaurantadapter.RestaurantAdapter
+
 
 class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.ConnectivityReceiverListener {
     private val BORDER_ID_KEY = "BORDER_ID_KEY"
@@ -41,7 +49,24 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         rvRestaurantList = findViewById<RecyclerView>(R.id.restaurantList)
         rvRestaurantList.layoutManager = LinearLayoutManager(this, LinearLayout.VERTICAL, false)
         rvRestaurantList.adapter = RestaurantAdapter()
-        presenter.load()
+
+        setSupportActionBar(findViewById<Toolbar>(R.id.tbSearch))
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val query =
+                if (Intent.ACTION_SEARCH == intent.action) intent.getStringExtra(SearchManager.QUERY)
+                else null
+
+        if (query != null) {
+            (rvRestaurantList.adapter as IAdapter).loading()
+            presenter.load(query)
+        }
     }
 
     override fun onStart() {
@@ -61,6 +86,45 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         ConnectivityReceiver.connectivityReceiverListener = null
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.toolbar_menu, menu)
+
+        val actionMenuItem = menu.findItem(R.id.action_search)
+        val expandListener = object : MenuItem.OnActionExpandListener {
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                return true // Return true to collapse action view
+            }
+
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
+                val searchView = actionMenuItem?.actionView as SearchView
+                searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
+                searchView.setIconifiedByDefault(false)
+                return true // Return true to expand action view
+            }
+        }
+        actionMenuItem?.setOnActionExpandListener(expandListener)
+
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem) =
+            when (item.itemId) {
+                R.id.action_search -> {
+                    item.expandActionView()
+                    true
+                }
+                R.id.action_use_gps -> {
+                    // Todo provide GPS data to presenter
+                    true
+                }
+                else -> super.onOptionsItemSelected(item)
+            }
+
+    override fun onSearchRequested(): Boolean {
+        return true
+    }
+
     override fun onSaveInstanceState(outState: Bundle?) {
         outState?.run {
             // Todo use previous instance state
@@ -73,7 +137,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
 
     override fun onNetworkConnectionChanged(isConnected: Boolean) {
         this.isConnected = isConnected
-        if (isConnected) presenter.load()
+        if (isConnected) handleIntent(intent)
         else Toast.makeText(this, "You are offline", Toast.LENGTH_SHORT).show()
     }
 

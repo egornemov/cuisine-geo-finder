@@ -1,15 +1,14 @@
 package com.nemov.cuisinegeofinder.api
 
 import io.reactivex.Observable
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.Query
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.http.HeaderMap
+import retrofit2.http.Query
 
 /**
  * Created by ynemov on 02.04.18.
@@ -19,7 +18,7 @@ interface IView {
 }
 
 interface IPresenter {
-    fun load()
+    fun load(postcode: String)
     fun dispose()
 }
 
@@ -34,10 +33,10 @@ interface IModel {
     companion object {
         fun create(): IModel {
             val logging = HttpLoggingInterceptor()
-            logging.setLevel(HttpLoggingInterceptor.Level.BODY)
+            logging.level = HttpLoggingInterceptor.Level.BODY
 
             val httpClient = OkHttpClient.Builder()
-            httpClient.addInterceptor(logging)  // <-- this is the important line!
+            httpClient.addInterceptor(logging)
 
             val retrofit = Retrofit.Builder()
                     .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
@@ -53,4 +52,5 @@ interface IModel {
 
 interface IAdapter {
     fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList)
+    fun loading()
 }

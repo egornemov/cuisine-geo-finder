@@ -17,12 +17,12 @@ class RestaurantPresenter(val view: IView) : IPresenter {
         disposable?.dispose()
     }
 
-    override fun load() {
+    override fun load(postcode: String) {
         val headerMap = HashMap<String, String>()
         headerMap.put("Accept-Tenant", "uk")
         headerMap.put("Accept-Language", "en-GB")
         headerMap.put("Authorization", "Basic VGVjaFRlc3Q6bkQ2NGxXVnZreDVw")
-        disposable = model.getRestaurantList(headerMap, "SE19")
+        disposable = model.getRestaurantList(headerMap, postcode)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .retry()
