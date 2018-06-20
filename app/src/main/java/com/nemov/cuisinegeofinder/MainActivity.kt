@@ -1,14 +1,18 @@
 package com.nemov.cuisinegeofinder
 
+import android.Manifest
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.ConnectivityManager
 import android.os.Bundle
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
 import android.support.v7.widget.SearchView
 import android.support.v7.widget.Toolbar
 import android.view.Menu
@@ -20,38 +24,35 @@ import com.nemov.cuisinegeofinder.api.IView
 import com.nemov.cuisinegeofinder.api.RestaurantModel
 import com.nemov.cuisinegeofinder.api.RestaurantPresenter
 import com.nemov.cuisinegeofinder.commons.ConnectivityReceiver
-import com.nemov.cuisinegeofinder.commons.findFirstVisiblePosition
+import com.nemov.cuisinegeofinder.commons.GPSTracker
+import com.nemov.cuisinegeofinder.commons.PERMISSIONS_REQUEST_USE_LOCATION
 import com.nemov.cuisinegeofinder.restaurantadapter.RestaurantAdapter
-
+import kotlinx.android.synthetic.main.activity_main.*
+import java.util.*
 
 class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.ConnectivityReceiverListener {
-    private val BORDER_ID_KEY = "BORDER_ID_KEY"
 
-    private val DEFAULT_BORDER_ID = 0
+    private val HISTORICAL_POSTCODE = "HISTORICAL_POSTCODE"
+
+    private val DEFAULT_POSTCODE: String? = null
     private val presenter = RestaurantPresenter(this)
 
     private val connectivityReceiver = ConnectivityReceiver()
-    private var borderId = 0
+    private var historicalPostcode: String? = DEFAULT_POSTCODE
 
     private var isConnected = false
-    private lateinit var rvRestaurantList: RecyclerView
 
     override fun setResults(restaurants: RestaurantModel.Companion.RestaurantList) {
-        (rvRestaurantList.adapter as IAdapter).clearAndSetAll(restaurants)
+        (restaurantList.adapter as IAdapter).clearAndSetAll(restaurants)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        borderId = savedInstanceState?.getInt(BORDER_ID_KEY)?: DEFAULT_BORDER_ID
-
-        rvRestaurantList = findViewById<RecyclerView>(R.id.restaurantList)
-        rvRestaurantList.layoutManager = LinearLayoutManager(this, LinearLayout.VERTICAL, false)
-        rvRestaurantList.adapter = RestaurantAdapter()
+        historicalPostcode = getPreferences(Context.MODE_PRIVATE).getString(HISTORICAL_POSTCODE, DEFAULT_POSTCODE)
 
         setSupportActionBar(findViewById<Toolbar>(R.id.tbSearch))
-        handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -59,18 +60,19 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     }
 
     private fun handleIntent(intent: Intent) {
-        val query =
+        historicalPostcode =
                 if (Intent.ACTION_SEARCH == intent.action) intent.getStringExtra(SearchManager.QUERY)
-                else null
+                else historicalPostcode
 
-        if (query != null) {
-            (rvRestaurantList.adapter as IAdapter).loading()
-            presenter.load(query)
-        }
+        historicalPostcode ?: return
+        (restaurantList.adapter as IAdapter).loading()
+        presenter.load(historicalPostcode as String)
     }
 
     override fun onStart() {
         super.onStart()
+        restaurantList.layoutManager = LinearLayoutManager(this, LinearLayout.VERTICAL, false)
+        restaurantList.adapter = RestaurantAdapter()
         registerReceiver(connectivityReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
         ConnectivityReceiver.connectivityReceiverListener = this
     }
@@ -78,6 +80,11 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     override fun onPause() {
         super.onPause()
         presenter.dispose()
+        val sharedPref = getPreferences(Context.MODE_PRIVATE) ?: return
+        with (sharedPref.edit()) {
+            putString(HISTORICAL_POSTCODE, historicalPostcode)
+            commit()
+        }
     }
 
     override fun onStop() {
@@ -98,6 +105,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
             override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                 val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
                 val searchView = actionMenuItem?.actionView as SearchView
+                if (historicalPostcode != null) searchView.setQuery(historicalPostcode, false)
                 searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
                 searchView.setIconifiedByDefault(false)
                 return true // Return true to expand action view
@@ -115,24 +123,50 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
                     true
                 }
                 R.id.action_use_gps -> {
-                    // Todo provide GPS data to presenter
+                    if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
+                            ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions(this, Array<String>(2) {
+                            Manifest.permission.ACCESS_COARSE_LOCATION;Manifest.permission.ACCESS_FINE_LOCATION
+                        }, PERMISSIONS_REQUEST_USE_LOCATION)
+                    } else {
+                        emitSearchIntent(this, getCurrentPostalCode(this))
+                    }
                     true
                 }
                 else -> super.onOptionsItemSelected(item)
             }
 
-    override fun onSearchRequested(): Boolean {
-        return true
-    }
+    override fun onSearchRequested() = true
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) =
+            when (requestCode) {
+                PERMISSIONS_REQUEST_USE_LOCATION -> {
+                    // If request is cancelled, the result arrays are empty.
+                    if (grantResults.filter { it == PackageManager.PERMISSION_GRANTED }.isNotEmpty()) {
+                        emitSearchIntent(this, getCurrentPostalCode(this))
+                    } else {
+                        // permission denied, boo! Disable the
+                        // functionality that depends on this permission.
+                    }
+                }
+                // Add other 'when' lines to check for other
+                // permissions this app might request.
+                else -> {
+                    // Ignore all other requests.
+                }
+            }
 
     override fun onSaveInstanceState(outState: Bundle?) {
         outState?.run {
-            // Todo use previous instance state
-            val firstVisible = rvRestaurantList.findFirstVisiblePosition()
-            borderId = 0
-            putInt(BORDER_ID_KEY, borderId)
+            putString(HISTORICAL_POSTCODE, historicalPostcode)
         }
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
+        super.onRestoreInstanceState(savedInstanceState)
+        historicalPostcode = savedInstanceState?.getString(HISTORICAL_POSTCODE)?: historicalPostcode
+        handleIntent(intent)
     }
 
     override fun onNetworkConnectionChanged(isConnected: Boolean) {
@@ -141,4 +175,23 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         else Toast.makeText(this, "You are offline", Toast.LENGTH_SHORT).show()
     }
 
+}
+
+fun getCurrentPostalCode(context: Context): String? {
+    val gps = GPSTracker(context);
+    val latitude = gps.getLatitude();
+    val longitude = gps.getLongitude();
+
+    val geoCoder = Geocoder(context, Locale.getDefault())
+    val address = geoCoder.getFromLocation(latitude, longitude, 1)
+    var query: String? = null
+    if (address.isNotEmpty()) query = address[0].getPostalCode()
+    return query
+}
+
+fun emitSearchIntent(context: Context, query: String?) {
+    val searchIntent = Intent(context, MainActivity::class.java)
+    searchIntent.action = Intent.ACTION_SEARCH
+    searchIntent.putExtra(SearchManager.QUERY, query)
+    context.startActivity(searchIntent)
 }
