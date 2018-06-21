@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.location.Geocoder
 import android.net.ConnectivityManager
 import android.os.Bundle
@@ -35,12 +36,14 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     private val HISTORICAL_POSTCODE = "HISTORICAL_POSTCODE"
 
     private val DEFAULT_POSTCODE: String? = null
-    private val presenter = RestaurantPresenter(this)
 
     private val connectivityReceiver = ConnectivityReceiver()
     private var historicalPostcode: String? = DEFAULT_POSTCODE
 
     private var isConnected = false
+
+    lateinit var actionSearch: MenuItem
+    lateinit var actionUseGPS: MenuItem
 
     override fun setResults(restaurants: RestaurantModel.Companion.RestaurantList) {
         (restaurantList.adapter as IAdapter).clearAndSetAll(restaurants)
@@ -50,6 +53,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        presenter.view = this
         historicalPostcode = getPreferences(Context.MODE_PRIVATE).getString(HISTORICAL_POSTCODE, DEFAULT_POSTCODE)
 
         setSupportActionBar(findViewById<Toolbar>(R.id.tbSearch))
@@ -93,27 +97,45 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         ConnectivityReceiver.connectivityReceiverListener = null
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration?) {
+        super.onConfigurationChanged(newConfig)
+        emitSearchIntent(this, historicalPostcode)
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.toolbar_menu, menu)
 
-        val actionMenuItem = menu.findItem(R.id.action_search)
+        actionSearch = menu.findItem(R.id.action_search)
         val expandListener = object : MenuItem.OnActionExpandListener {
+
             override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
-                return true // Return true to collapse action view
+                actionSearch.isVisible = true
+                return true
             }
 
             override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                 val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
-                val searchView = actionMenuItem?.actionView as SearchView
+                val searchView = actionSearch.actionView as SearchView
                 if (historicalPostcode != null) searchView.setQuery(historicalPostcode, false)
                 searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
                 searchView.setIconifiedByDefault(false)
-                return true // Return true to expand action view
+                actionSearch.isVisible = false
+                return true
             }
+
         }
-        actionMenuItem?.setOnActionExpandListener(expandListener)
+        actionSearch.setOnActionExpandListener(expandListener)
+
+        actionUseGPS = menu.findItem(R.id.action_use_gps)
 
         return super.onCreateOptionsMenu(menu)
+    }
+
+    private fun searchByGPSLocation() {
+        historicalPostcode = getCurrentPostalCode(this)
+        emitSearchIntent(this, historicalPostcode)
+        val searchView = actionSearch.actionView as SearchView
+        if (historicalPostcode != null) searchView.setQuery(historicalPostcode, false)
     }
 
     override fun onOptionsItemSelected(item: MenuItem) =
@@ -129,7 +151,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
                             Manifest.permission.ACCESS_COARSE_LOCATION;Manifest.permission.ACCESS_FINE_LOCATION
                         }, PERMISSIONS_REQUEST_USE_LOCATION)
                     } else {
-                        emitSearchIntent(this, getCurrentPostalCode(this))
+                        searchByGPSLocation()
                     }
                     true
                 }
@@ -141,19 +163,15 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) =
             when (requestCode) {
                 PERMISSIONS_REQUEST_USE_LOCATION -> {
-                    // If request is cancelled, the result arrays are empty.
                     if (grantResults.filter { it == PackageManager.PERMISSION_GRANTED }.isNotEmpty()) {
-                        emitSearchIntent(this, getCurrentPostalCode(this))
+                        searchByGPSLocation()
+                        Unit
                     } else {
-                        // permission denied, boo! Disable the
-                        // functionality that depends on this permission.
+                        Toast.makeText(applicationContext, resources.getText(R.string.toast_absent_permission), Toast.LENGTH_SHORT).show()
+                        actionUseGPS.isEnabled = false
                     }
                 }
-                // Add other 'when' lines to check for other
-                // permissions this app might request.
-                else -> {
-                    // Ignore all other requests.
-                }
+                else -> Unit
             }
 
     override fun onSaveInstanceState(outState: Bundle?) {
@@ -172,7 +190,11 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     override fun onNetworkConnectionChanged(isConnected: Boolean) {
         this.isConnected = isConnected
         if (isConnected) handleIntent(intent)
-        else Toast.makeText(this, "You are offline", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(this, resources.getText(R.string.toast_offline), Toast.LENGTH_SHORT).show()
+    }
+
+    companion object {
+        private val presenter = RestaurantPresenter()
     }
 
 }
