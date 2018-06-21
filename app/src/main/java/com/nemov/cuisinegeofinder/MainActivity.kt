@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.location.Geocoder
 import android.net.ConnectivityManager
 import android.os.Bundle
@@ -43,10 +42,15 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     private var isConnected = false
 
     lateinit var actionSearch: MenuItem
-    lateinit var actionUseGPS: MenuItem
+    private lateinit var actionUseGPS: MenuItem
 
-    override fun setResults(restaurants: RestaurantModel.Companion.RestaurantList) {
+    override fun setResults(restaurants: RestaurantModel.Companion.RestaurantList?) {
         (restaurantList.adapter as IAdapter).clearAndSetAll(restaurants)
+        if (restaurants == null) {
+            Toast.makeText(this, resources.getText(R.string.toast_data_is_temporary_unavailable), Toast.LENGTH_SHORT).show()
+        } else if (restaurants.Restaurants.isEmpty()) {
+            Toast.makeText(this, resources.getText(R.string.toast_no_data_for_location), Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +74,8 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
 
         historicalPostcode ?: return
         (restaurantList.adapter as IAdapter).loading()
-        presenter.load(historicalPostcode as String)
+        val fromCache = !isConnected
+        presenter.load(historicalPostcode as String, fromCache)
     }
 
     override fun onStart() {
@@ -95,11 +100,6 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         super.onStop()
         unregisterReceiver(connectivityReceiver)
         ConnectivityReceiver.connectivityReceiverListener = null
-    }
-
-    override fun onConfigurationChanged(newConfig: Configuration?) {
-        super.onConfigurationChanged(newConfig)
-        emitSearchIntent(this, historicalPostcode)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -167,7 +167,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
                         searchByGPSLocation()
                         Unit
                     } else {
-                        Toast.makeText(applicationContext, resources.getText(R.string.toast_absent_permission), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, resources.getText(R.string.toast_absent_permission), Toast.LENGTH_SHORT).show()
                         actionUseGPS.isEnabled = false
                     }
                 }

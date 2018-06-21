@@ -38,11 +38,12 @@ class RestaurantAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), IAdap
 
     override fun getItemViewType(position: Int) = items[position].getViewType()
 
-    override fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList) {
+    override fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList?) {
         val count = items.size
         items.clear()
         notifyItemRangeRemoved(0, count)
 
+        restaurants ?: return
         items.addAll(restaurants.Restaurants)
         notifyItemRangeChanged(0, items.size - 1)
     }

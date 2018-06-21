@@ -21,9 +21,10 @@ class RestaurantPresenter : IPresenter {
         disposable?.dispose()
     }
 
-    override fun load(postcode: String) {
-        if (restaurantMap.containsKey(postcode)) {
-            view.setResults(restaurantMap[postcode] as RestaurantModel.Companion.RestaurantList)
+    override fun load(postcode: String, fromCache: Boolean) {
+        if (fromCache || restaurantMap.containsKey(postcode)) {
+            val restaurants = restaurantMap[postcode]
+            view.setResults(restaurants)
         } else {
             val headerMap = HashMap<String, String>()
             headerMap.put("Accept-Tenant", "uk")

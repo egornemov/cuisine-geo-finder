@@ -14,11 +14,11 @@ import retrofit2.http.Query
  * Created by ynemov on 02.04.18.
  */
 interface IView {
-    fun setResults(restaurants: RestaurantModel.Companion.RestaurantList)
+    fun setResults(restaurants: RestaurantModel.Companion.RestaurantList?)
 }
 
 interface IPresenter {
-    fun load(postcode: String)
+    fun load(postcode: String, fromCache: Boolean)
     fun dispose()
 }
 
@@ -51,6 +51,6 @@ interface IModel {
 }
 
 interface IAdapter {
-    fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList)
+    fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList?)
     fun loading()
 }
