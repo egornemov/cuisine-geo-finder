@@ -21,6 +21,7 @@ class RestaurantAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), IAdap
     }
 
     init {
+        delegateAdapters.put(AdapterConstants.ERROR, FailedResponseDelegateAdapter())
         delegateAdapters.put(AdapterConstants.LOADING, LoadingDelegateAdapter())
         delegateAdapters.put(AdapterConstants.RESTAURANT, RestaurantDelegateAdapter())
         items = ArrayList()
@@ -38,13 +39,16 @@ class RestaurantAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), IAdap
 
     override fun getItemViewType(position: Int) = items[position].getViewType()
 
-    override fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList?) {
+    override fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantResponse?) {
         val count = items.size
         items.clear()
         notifyItemRangeRemoved(0, count)
 
         restaurants ?: return
-        items.addAll(restaurants.Restaurants)
+        when {
+            restaurants.hasErrors -> items.add(restaurants.Errors[0])
+            else -> items.addAll(restaurants.Restaurants)
+        }
         notifyItemRangeChanged(0, items.size - 1)
     }
 

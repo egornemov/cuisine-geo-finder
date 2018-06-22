@@ -2,7 +2,7 @@ package com.nemov.cuisinegeofinder.api
 
 import com.nemov.cuisinegeofinder.commons.adapter.AdapterConstants
 import com.nemov.cuisinegeofinder.commons.adapter.ViewType
-import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * Created by ynemov on 31.03.18.
@@ -13,7 +13,11 @@ class RestaurantModel(val model: IModel = IModel.create()) : IModel {
             model.getRestaurantList(headerMap, postcode)
 
     companion object {
-        data class RestaurantList(val Restaurants: ArrayList<Restaurant>)
+        data class RestaurantResponse(
+                val Restaurants: ArrayList<Restaurant>,
+                val Errors: ArrayList<Error>,
+                val hasErrors: Boolean
+        )
 
         data class Restaurant(
                 val Id: Int,
@@ -24,10 +28,13 @@ class RestaurantModel(val model: IModel = IModel.create()) : IModel {
         ) : ViewType {
             override fun getViewType() = AdapterConstants.RESTAURANT
         }
-
         data class CuisineType(val Name: String)
 
         data class Logo(val StandardResolutionURL: String)
+
+        data class Error(val ErrorType: String, val Message: String) : ViewType {
+            override fun getViewType() = AdapterConstants.ERROR
+        }
     }
 
 }

@@ -14,23 +14,22 @@ class RestaurantModelTest {
 
     val logoURL = "https://en.wikipedia.org/wiki/Android_(operating_system)#/media/File:Android_robot_2014.svg"
 
-    val restaurantResponse =
-            RestaurantModel.Companion.RestaurantList(arrayListOf(
+    val restaurantResponse = RestaurantModel.Companion.RestaurantResponse(
+            arrayListOf(
                     RestaurantModel.Companion.Restaurant(
                             42,
                             "Apollo",
                             4.2F,
-                            arrayListOf(
-                                    RestaurantModel.Companion.CuisineType("Pizza")
-                            ),
-                            arrayListOf(
-                                    RestaurantModel.Companion.Logo(logoURL)
-                            )
+                            arrayListOf(RestaurantModel.Companion.CuisineType("Pizza")),
+                            arrayListOf(RestaurantModel.Companion.Logo(logoURL))
                     )
-            ))
+            ),
+            arrayListOf(),
+            false
+    )
 
     private var model = object : IModel {
-        override fun getRestaurantList(headerMap: Map<String, String>, postcode: String): Observable<RestaurantModel.Companion.RestaurantList> {
+        override fun getRestaurantList(headerMap: Map<String, String>, postcode: String): Observable<RestaurantModel.Companion.RestaurantResponse> {
             return Observable.just(restaurantResponse)
         }
     }
@@ -49,7 +48,7 @@ class RestaurantModelTest {
 
         val result = restaurantModel.getRestaurantList(headerMap, postcode)
 
-        val testObserver = TestObserver<RestaurantModel.Companion.RestaurantList>()
+        val testObserver = TestObserver<RestaurantModel.Companion.RestaurantResponse>()
         result.subscribe(testObserver)
         testObserver.assertComplete()
         testObserver.assertNoErrors()
@@ -63,6 +62,8 @@ class RestaurantModelTest {
         assertThat(observerResult.Restaurants[0].CuisineTypes[0].Name, `is`("Pizza"))
         assertThat(observerResult.Restaurants[0].Logo.size, `is`(1))
         assertThat(observerResult.Restaurants[0].Logo[0].StandardResolutionURL, `is`(logoURL))
+        assertThat(observerResult.Errors.size, `is`(0))
+        assertThat(observerResult.hasErrors, `is`(false))
     }
 
 }

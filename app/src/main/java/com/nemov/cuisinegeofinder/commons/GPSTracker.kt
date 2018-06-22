@@ -170,27 +170,23 @@ class GPSTracker(private val context: Context) : Service(), LocationListener {
                 .setMessage("GPS is not enabled. Do you want to go to settings menu?")
 
         // On pressing Settings button
-        alertDialog.setPositiveButton("Settings"
-        ) { dialog, which ->
-            val intent = Intent(
-                    Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        alertDialog.setPositiveButton("Settings") { _, _ ->
+            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
             context.startActivity(intent)
         }
 
         // on pressing cancel button
-        alertDialog.setNegativeButton("Cancel"
-        ) { dialog, which -> dialog.cancel() }
+        alertDialog.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
 
         // Showing Alert Message
         alertDialog.show()
     }
 
     override fun onLocationChanged(location: Location) {
-        var bestAccuracy = -1f
+        val bestAccuracy = -1f
         if (location.accuracy != 0.0f && location.accuracy < bestAccuracy || bestAccuracy == -1f) {
             locationManager!!.removeUpdates(this)
         }
-        bestAccuracy = location.accuracy
     }
 
     override fun onProviderDisabled(provider: String) {}

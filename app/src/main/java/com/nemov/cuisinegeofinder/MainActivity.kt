@@ -14,7 +14,6 @@ import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.SearchView
-import android.support.v7.widget.Toolbar
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.LinearLayout
@@ -44,11 +43,11 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
     lateinit var actionSearch: MenuItem
     private lateinit var actionUseGPS: MenuItem
 
-    override fun setResults(restaurants: RestaurantModel.Companion.RestaurantList?) {
+    override fun setResults(restaurants: RestaurantModel.Companion.RestaurantResponse?) {
         (restaurantList.adapter as IAdapter).clearAndSetAll(restaurants)
         if (restaurants == null) {
             Toast.makeText(this, resources.getText(R.string.toast_data_is_temporary_unavailable), Toast.LENGTH_SHORT).show()
-        } else if (restaurants.Restaurants.isEmpty()) {
+        } else if (!restaurants.hasErrors && restaurants.Restaurants.isEmpty()) {
             Toast.makeText(this, resources.getText(R.string.toast_no_data_for_location), Toast.LENGTH_SHORT).show()
         }
     }
@@ -60,7 +59,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
         presenter.view = this
         historicalPostcode = getPreferences(Context.MODE_PRIVATE).getString(HISTORICAL_POSTCODE, DEFAULT_POSTCODE)
 
-        setSupportActionBar(findViewById<Toolbar>(R.id.tbSearch))
+        setSupportActionBar(findViewById(R.id.tbSearch))
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -74,8 +73,7 @@ class MainActivity : AppCompatActivity(), IView, ConnectivityReceiver.Connectivi
 
         historicalPostcode ?: return
         (restaurantList.adapter as IAdapter).loading()
-        val fromCache = !isConnected
-        presenter.load(historicalPostcode as String, fromCache)
+        presenter.load(historicalPostcode as String)
     }
 
     override fun onStart() {

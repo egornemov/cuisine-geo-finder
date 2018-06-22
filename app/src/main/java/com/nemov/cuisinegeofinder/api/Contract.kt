@@ -14,11 +14,11 @@ import retrofit2.http.Query
  * Created by ynemov on 02.04.18.
  */
 interface IView {
-    fun setResults(restaurants: RestaurantModel.Companion.RestaurantList?)
+    fun setResults(restaurants: RestaurantModel.Companion.RestaurantResponse?)
 }
 
 interface IPresenter {
-    fun load(postcode: String, fromCache: Boolean)
+    fun load(postcode: String)
     fun dispose()
 }
 
@@ -28,7 +28,7 @@ interface IModel {
     fun getRestaurantList(
             @HeaderMap headerMap: Map<String, String>,
             @Query("q") postcode: String
-    ): Observable<RestaurantModel.Companion.RestaurantList>
+    ): Observable<RestaurantModel.Companion.RestaurantResponse>
 
     companion object {
         fun create(): IModel {
@@ -51,6 +51,6 @@ interface IModel {
 }
 
 interface IAdapter {
-    fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantList?)
+    fun clearAndSetAll(restaurants: RestaurantModel.Companion.RestaurantResponse?)
     fun loading()
 }
