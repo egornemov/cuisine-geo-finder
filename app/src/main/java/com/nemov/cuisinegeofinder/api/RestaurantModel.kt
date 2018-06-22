@@ -2,15 +2,12 @@ package com.nemov.cuisinegeofinder.api
 
 import com.nemov.cuisinegeofinder.commons.adapter.AdapterConstants
 import com.nemov.cuisinegeofinder.commons.adapter.ViewType
-import retrofit2.http.HeaderMap
 import java.util.*
 
 /**
  * Created by ynemov on 31.03.18.
  */
-class RestaurantModel : IModel {
-
-    private val model = IModel.create()
+class RestaurantModel(val model: IModel = IModel.create()) : IModel {
 
     override fun getRestaurantList(headerMap: Map<String, String>, postcode: String) =
             model.getRestaurantList(headerMap, postcode)
